@@ -1,5 +1,6 @@
 /*
- * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2016 Minio, Inc.
+ * MinIO Go Library for Amazon S3 Compatible Cloud Storage
+ * Copyright 2017-2020 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,22 +19,27 @@ package minio
 
 import (
 	"bufio"
-	"encoding/json"
-	"io"
+	"context"
 	"net/http"
 	"net/url"
 	"time"
 
-	"github.com/minio/minio-go/pkg/s3utils"
+	jsoniter "github.com/json-iterator/go"
+	"github.com/minio/minio-go/v6/pkg/s3utils"
 )
 
-// GetBucketNotification - get bucket notification at a given path.
+// GetBucketNotification is a wrapper for GetBucketNotificationWithContext
 func (c Client) GetBucketNotification(bucketName string) (bucketNotification BucketNotification, err error) {
+	return c.GetBucketNotificationWithContext(context.Background(), bucketName)
+}
+
+// GetBucketNotificationWithContext - get bucket notification at a given path.
+func (c Client) GetBucketNotificationWithContext(ctx context.Context, bucketName string) (bucketNotification BucketNotification, err error) {
 	// Input validation.
-	if err := isValidBucketName(bucketName); err != nil {
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return BucketNotification{}, err
 	}
-	notification, err := c.getBucketNotification(bucketName)
+	notification, err := c.getBucketNotification(ctx, bucketName)
 	if err != nil {
 		return BucketNotification{}, err
 	}
@@ -41,14 +47,15 @@ func (c Client) GetBucketNotification(bucketName string) (bucketNotification Buc
 }
 
 // Request server for notification rules.
-func (c Client) getBucketNotification(bucketName string) (BucketNotification, error) {
+func (c Client) getBucketNotification(ctx context.Context, bucketName string) (BucketNotification, error) {
 	urlValues := make(url.Values)
 	urlValues.Set("notification", "")
 
 	// Execute GET on bucket to list objects.
-	resp, err := c.executeMethod("GET", requestMetadata{
-		bucketName:  bucketName,
-		queryValues: urlValues,
+	resp, err := c.executeMethod(ctx, "GET", requestMetadata{
+		bucketName:       bucketName,
+		queryValues:      urlValues,
+		contentSHA256Hex: emptySHA256Hex,
 	})
 
 	defer closeResponse(resp)
@@ -87,11 +94,13 @@ type bucketMeta struct {
 
 // Notification event object metadata.
 type objectMeta struct {
-	Key       string `json:"key"`
-	Size      int64  `json:"size,omitempty"`
-	ETag      string `json:"eTag,omitempty"`
-	VersionID string `json:"versionId,omitempty"`
-	Sequencer string `json:"sequencer"`
+	Key          string            `json:"key"`
+	Size         int64             `json:"size,omitempty"`
+	ETag         string            `json:"eTag,omitempty"`
+	ContentType  string            `json:"contentType,omitempty"`
+	UserMetadata map[string]string `json:"userMetadata,omitempty"`
+	VersionID    string            `json:"versionId,omitempty"`
+	Sequencer    string            `json:"sequencer"`
 }
 
 // Notification event server specific metadata.
@@ -100,6 +109,14 @@ type eventMeta struct {
 	ConfigurationID string     `json:"configurationId"`
 	Bucket          bucketMeta `json:"bucket"`
 	Object          objectMeta `json:"object"`
+}
+
+// sourceInfo represents information on the client that
+// triggered the event notification.
+type sourceInfo struct {
+	Host      string `json:"host"`
+	Port      string `json:"port"`
+	UserAgent string `json:"userAgent"`
 }
 
 // NotificationEvent represents an Amazon an S3 bucket notification event.
@@ -113,6 +130,7 @@ type NotificationEvent struct {
 	RequestParameters map[string]string `json:"requestParameters"`
 	ResponseElements  map[string]string `json:"responseElements"`
 	S3                eventMeta         `json:"s3"`
+	Source            sourceInfo        `json:"source"`
 }
 
 // NotificationInfo - represents the collection of notification events, additionally
@@ -122,57 +140,81 @@ type NotificationInfo struct {
 	Err     error
 }
 
-// ListenBucketNotification - listen on bucket notifications.
+// ListenBucketNotification is a wrapper for ListenBucketNotificationWithContext.
 func (c Client) ListenBucketNotification(bucketName, prefix, suffix string, events []string, doneCh <-chan struct{}) <-chan NotificationInfo {
+	return c.ListenBucketNotificationWithContext(context.Background(), bucketName, prefix, suffix, events, doneCh)
+}
+
+// ListenBucketNotificationWithContext - listen on bucket notifications.
+func (c Client) ListenBucketNotificationWithContext(ctx context.Context, bucketName, prefix, suffix string, events []string, doneCh <-chan struct{}) <-chan NotificationInfo {
 	notificationInfoCh := make(chan NotificationInfo, 1)
+	const notificationCapacity = 1024 * 1024
+	notificationEventBuffer := make([]byte, notificationCapacity)
 	// Only success, start a routine to start reading line by line.
 	go func(notificationInfoCh chan<- NotificationInfo) {
 		defer close(notificationInfoCh)
 
 		// Validate the bucket name.
-		if err := isValidBucketName(bucketName); err != nil {
-			notificationInfoCh <- NotificationInfo{
+		if err := s3utils.CheckValidBucketName(bucketName); err != nil {
+			select {
+			case notificationInfoCh <- NotificationInfo{
 				Err: err,
+			}:
+			case <-doneCh:
 			}
 			return
 		}
 
 		// Check ARN partition to verify if listening bucket is supported
-		if s3utils.IsAmazonEndpoint(c.endpointURL) || s3utils.IsGoogleEndpoint(c.endpointURL) {
-			notificationInfoCh <- NotificationInfo{
-				Err: ErrAPINotSupported("Listening bucket notification is specific only to `minio` partitions"),
+		if s3utils.IsAmazonEndpoint(*c.endpointURL) || s3utils.IsGoogleEndpoint(*c.endpointURL) {
+			select {
+			case notificationInfoCh <- NotificationInfo{
+				Err: ErrAPINotSupported("Listening for bucket notification is specific only to `minio` server endpoints"),
+			}:
+			case <-doneCh:
 			}
 			return
 		}
 
-		// Continously run and listen on bucket notification.
+		// Continuously run and listen on bucket notification.
 		// Create a done channel to control 'ListObjects' go routine.
 		retryDoneCh := make(chan struct{}, 1)
 
 		// Indicate to our routine to exit cleanly upon return.
 		defer close(retryDoneCh)
 
+		// Prepare urlValues to pass into the request on every loop
+		urlValues := make(url.Values)
+		urlValues.Set("prefix", prefix)
+		urlValues.Set("suffix", suffix)
+		urlValues["events"] = events
+
 		// Wait on the jitter retry loop.
 		for range c.newRetryTimerContinous(time.Second, time.Second*30, MaxJitter, retryDoneCh) {
-			urlValues := make(url.Values)
-			urlValues.Set("prefix", prefix)
-			urlValues.Set("suffix", suffix)
-			urlValues["events"] = events
-
 			// Execute GET on bucket to list objects.
-			resp, err := c.executeMethod("GET", requestMetadata{
-				bucketName:  bucketName,
-				queryValues: urlValues,
+			resp, err := c.executeMethod(ctx, http.MethodGet, requestMetadata{
+				bucketName:       bucketName,
+				queryValues:      urlValues,
+				contentSHA256Hex: emptySHA256Hex,
 			})
 			if err != nil {
-				continue
+				select {
+				case notificationInfoCh <- NotificationInfo{
+					Err: err,
+				}:
+				case <-doneCh:
+				}
+				return
 			}
 
 			// Validate http response, upon error return quickly.
 			if resp.StatusCode != http.StatusOK {
 				errResponse := httpRespToErrorResponse(resp, bucketName, "")
-				notificationInfoCh <- NotificationInfo{
+				select {
+				case notificationInfoCh <- NotificationInfo{
 					Err: errResponse,
+				}:
+				case <-doneCh:
 				}
 				return
 			}
@@ -180,32 +222,49 @@ func (c Client) ListenBucketNotification(bucketName, prefix, suffix string, even
 			// Initialize a new bufio scanner, to read line by line.
 			bio := bufio.NewScanner(resp.Body)
 
-			// Close the response body.
-			defer resp.Body.Close()
+			// Use a higher buffer to support unexpected
+			// caching done by proxies
+			bio.Buffer(notificationEventBuffer, notificationCapacity)
+			var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
-			// Unmarshal each line, returns marshalled values.
+			// Unmarshal each line, returns marshaled values.
 			for bio.Scan() {
 				var notificationInfo NotificationInfo
 				if err = json.Unmarshal(bio.Bytes(), &notificationInfo); err != nil {
-					continue
-				}
-				// Send notifications on channel only if there are events received.
-				if len(notificationInfo.Records) > 0 {
+					// Unexpected error during json unmarshal, send
+					// the error to caller for actionable as needed.
 					select {
-					case notificationInfoCh <- notificationInfo:
+					case notificationInfoCh <- NotificationInfo{
+						Err: err,
+					}:
 					case <-doneCh:
 						return
 					}
+					closeResponse(resp)
+					continue
+				}
+				// Send notificationInfo
+				select {
+				case notificationInfoCh <- notificationInfo:
+				case <-doneCh:
+					closeResponse(resp)
+					return
 				}
 			}
-			// Look for any underlying errors.
+
 			if err = bio.Err(); err != nil {
-				// For an unexpected connection drop from server, we close the body
-				// and re-connect.
-				if err == io.ErrUnexpectedEOF {
-					resp.Body.Close()
+				select {
+				case notificationInfoCh <- NotificationInfo{
+					Err: err,
+				}:
+				case <-doneCh:
+					return
 				}
 			}
+
+			// Close current connection before looping further.
+			closeResponse(resp)
+
 		}
 	}(notificationInfoCh)
 

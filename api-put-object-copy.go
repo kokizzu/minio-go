@@ -1,5 +1,6 @@
 /*
- * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2016 Minio, Inc.
+ * MinIO Go Library for Amazon S3 Compatible Cloud Storage
+ * Copyright 2017, 2018 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,56 +18,88 @@
 package minio
 
 import (
+	"context"
+	"io"
+	"io/ioutil"
 	"net/http"
+	"time"
 
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/minio/minio-go/v6/pkg/encrypt"
+	"github.com/minio/minio-go/v6/pkg/s3utils"
 )
 
-// CopyObject - copy a source object into a new object with the provided name in the provided bucket
-func (c Client) CopyObject(bucketName string, objectName string, objectSource string, cpCond CopyConditions) error {
-	// Input validation.
-	if err := isValidBucketName(bucketName); err != nil {
-		return err
-	}
-	if err := isValidObjectName(objectName); err != nil {
-		return err
-	}
-	if objectSource == "" {
-		return ErrInvalidArgument("Object source cannot be empty.")
+// CopyObject - copy a source object into a new object
+func (c Client) CopyObject(dst DestinationInfo, src SourceInfo) error {
+	return c.CopyObjectWithProgress(dst, src, nil)
+}
+
+// CopyObjectWithProgress is a wrapper for CopyObjectWithProgressWithContext
+// progress bar input to notify current progress.
+func (c Client) CopyObjectWithProgress(dst DestinationInfo, src SourceInfo, progress io.Reader) error {
+	return c.CopyObjectWithProgressWithContext(context.Background(), dst, src, progress)
+}
+
+// CopyObjectWithProgressWithContext - copy a source object into a new object, optionally takes
+// progress bar input to notify current progress.
+func (c Client) CopyObjectWithProgressWithContext(ctx context.Context, dst DestinationInfo, src SourceInfo, progress io.Reader) error {
+	header := make(http.Header)
+	for k, v := range src.Headers {
+		header[k] = v
 	}
 
-	// customHeaders apply headers.
-	customHeaders := make(http.Header)
-	for _, cond := range cpCond.conditions {
-		customHeaders.Set(cond.key, cond.value)
+	if dst.opts.ReplaceTags && len(dst.opts.UserTags) != 0 {
+		header.Set(amzTaggingHeaderDirective, "REPLACE")
+		header.Set(amzTaggingHeader, s3utils.TagEncode(dst.opts.UserTags))
 	}
 
-	// Set copy source.
-	customHeaders.Set("x-amz-copy-source", s3utils.EncodePath(objectSource))
-
-	// Execute PUT on objectName.
-	resp, err := c.executeMethod("PUT", requestMetadata{
-		bucketName:   bucketName,
-		objectName:   objectName,
-		customHeader: customHeaders,
-	})
-	defer closeResponse(resp)
-	if err != nil {
-		return err
+	if dst.opts.LegalHold != LegalHoldStatus("") {
+		header.Set(amzLegalHoldHeader, dst.opts.LegalHold.String())
 	}
-	if resp != nil {
-		if resp.StatusCode != http.StatusOK {
-			return httpRespToErrorResponse(resp, bucketName, objectName)
+
+	if dst.opts.Mode != RetentionMode("") && !dst.opts.RetainUntilDate.IsZero() {
+		header.Set(amzLockMode, dst.opts.Mode.String())
+		header.Set(amzLockRetainUntil, dst.opts.RetainUntilDate.Format(time.RFC3339))
+	}
+
+	var err error
+	var size int64
+	// If progress bar is specified, size should be requested as well initiate a StatObject request.
+	if progress != nil {
+		size, _, _, err = src.getProps(c)
+		if err != nil {
+			return err
 		}
 	}
 
-	// Decode copy response on success.
-	cpObjRes := copyObjectResult{}
-	err = xmlDecoder(resp.Body, &cpObjRes)
+	if src.encryption != nil {
+		encrypt.SSECopy(src.encryption).Marshal(header)
+	}
+
+	if dst.opts.Encryption != nil {
+		dst.opts.Encryption.Marshal(header)
+	}
+	for k, v := range dst.getUserMetaHeadersMap(true) {
+		header.Set(k, v)
+	}
+
+	resp, err := c.executeMethod(ctx, "PUT", requestMetadata{
+		bucketName:   dst.bucket,
+		objectName:   dst.object,
+		customHeader: header,
+	})
 	if err != nil {
 		return err
 	}
+	defer closeResponse(resp)
 
-	// Return nil on success.
+	if resp.StatusCode != http.StatusOK {
+		return httpRespToErrorResponse(resp, dst.bucket, dst.object)
+	}
+
+	// Update the progress properly after successful copy.
+	if progress != nil {
+		io.CopyN(ioutil.Discard, progress, size)
+	}
+
 	return nil
 }

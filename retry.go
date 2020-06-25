@@ -1,5 +1,6 @@
 /*
- * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2015, 2016 Minio, Inc.
+ * MinIO Go Library for Amazon S3 Compatible Cloud Storage
+ * Copyright 2015-2017 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +18,13 @@
 package minio
 
 import (
-	"net"
+	"context"
 	"net/http"
-	"net/url"
-	"strings"
 	"time"
 )
 
 // MaxRetry is the maximum number of retries before stopping.
-var MaxRetry = 5
+var MaxRetry = 10
 
 // MaxJitter will randomize over the full exponential backoff time
 const MaxJitter = 1.0
@@ -33,9 +32,17 @@ const MaxJitter = 1.0
 // NoJitter disables the use of jitter for randomizing the exponential backoff time
 const NoJitter = 0.0
 
-// newRetryTimer creates a timer with exponentially increasing delays
-// until the maximum retry attempts are reached.
-func (c Client) newRetryTimer(maxRetry int, unit time.Duration, cap time.Duration, jitter float64, doneCh chan struct{}) <-chan int {
+// DefaultRetryUnit - default unit multiplicative per retry.
+// defaults to 1 second.
+const DefaultRetryUnit = time.Second
+
+// DefaultRetryCap - Each retry attempt never waits no longer than
+// this maximum time duration.
+const DefaultRetryCap = time.Second * 30
+
+// newRetryTimer creates a timer with exponentially increasing
+// delays until the maximum retry attempts are reached.
+func (c Client) newRetryTimer(ctx context.Context, maxRetry int, unit time.Duration, cap time.Duration, jitter float64) <-chan int {
 	attemptCh := make(chan int)
 
 	// computes the exponential backoff duration according to
@@ -64,42 +71,19 @@ func (c Client) newRetryTimer(maxRetry int, unit time.Duration, cap time.Duratio
 		defer close(attemptCh)
 		for i := 0; i < maxRetry; i++ {
 			select {
-			// Attempts start from 1.
 			case attemptCh <- i + 1:
-			case <-doneCh:
-				// Stop the routine.
+			case <-ctx.Done():
 				return
 			}
-			time.Sleep(exponentialBackoffWait(i))
+
+			select {
+			case <-time.After(exponentialBackoffWait(i)):
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 	return attemptCh
-}
-
-// isNetErrorRetryable - is network error retryable.
-func isNetErrorRetryable(err error) bool {
-	switch err.(type) {
-	case net.Error:
-		switch err.(type) {
-		case *net.DNSError, *net.OpError, net.UnknownNetworkError:
-			return true
-		case *url.Error:
-			// For a URL error, where it replies back "connection closed"
-			// retry again.
-			if strings.Contains(err.Error(), "Connection closed by foreign host") {
-				return true
-			}
-		default:
-			if strings.Contains(err.Error(), "net/http: TLS handshake timeout") {
-				// If error is - tlsHandshakeTimeoutError, retry.
-				return true
-			} else if strings.Contains(err.Error(), "i/o timeout") {
-				// If error is - tcp timeoutError, retry.
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // List of AWS S3 error codes which are retryable.
@@ -113,6 +97,7 @@ var retryableS3Codes = map[string]struct{}{
 	"InternalError":         {},
 	"ExpiredToken":          {},
 	"ExpiredTokenException": {},
+	"SlowDown":              {},
 	// Add more AWS S3 codes here.
 }
 
@@ -124,10 +109,11 @@ func isS3CodeRetryable(s3Code string) (ok bool) {
 
 // List of HTTP status codes which are retryable.
 var retryableHTTPStatusCodes = map[int]struct{}{
-	429: {}, // http.StatusTooManyRequests is not part of the Go 1.5 library, yet
+	429:                            {}, // http.StatusTooManyRequests is not part of the Go 1.5 library, yet
 	http.StatusInternalServerError: {},
 	http.StatusBadGateway:          {},
 	http.StatusServiceUnavailable:  {},
+	http.StatusGatewayTimeout:      {},
 	// Add more HTTP status codes here.
 }
 

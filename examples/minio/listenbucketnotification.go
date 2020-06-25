@@ -1,7 +1,8 @@
 // +build ignore
 
 /*
- * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2015, 2016 Minio, Inc.
+ * MinIO Go Library for Amazon S3 Compatible Cloud Storage
+ * Copyright 2015-2017 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +22,7 @@ package main
 import (
 	"log"
 
-	"github.com/minio/minio-go"
+	"github.com/minio/minio-go/v6"
 )
 
 func main() {
@@ -33,7 +34,7 @@ func main() {
 
 	// New returns an Amazon S3 compatible client object. API compatibility (v2 or v4) is automatically
 	// determined based on the Endpoint value.
-	minioClient, err := minio.New("play.minio.io:9000", "YOUR-ACCESS", "YOUR-SECRET", true)
+	minioClient, err := minio.New("play.min.io", "YOUR-ACCESS", "YOUR-SECRET", true)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -49,6 +50,7 @@ func main() {
 	// Listen for bucket notifications on "mybucket" filtered by prefix, suffix and events.
 	for notificationInfo := range minioClient.ListenBucketNotification("YOUR-BUCKET", "PREFIX", "SUFFIX", []string{
 		"s3:ObjectCreated:*",
+		"s3:ObjectAccessed:*",
 		"s3:ObjectRemoved:*",
 	}, doneCh) {
 		if notificationInfo.Err != nil {

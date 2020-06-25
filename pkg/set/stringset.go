@@ -1,5 +1,6 @@
 /*
- * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2016 Minio, Inc.
+ * MinIO Go Library for Amazon S3 Compatible Cloud Storage
+ * Copyright 2015-2017 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,16 +18,19 @@
 package set
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
+
+	jsoniter "github.com/json-iterator/go"
 )
 
 // StringSet - uses map as set of strings.
 type StringSet map[string]struct{}
 
-// keys - returns StringSet keys.
-func (set StringSet) keys() []string {
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
+
+// ToSlice - returns StringSet as string slice.
+func (set StringSet) ToSlice() []string {
 	keys := make([]string, 0, len(set))
 	for k := range set {
 		keys = append(keys, k)
@@ -141,7 +145,7 @@ func (set StringSet) Union(sset StringSet) StringSet {
 
 // MarshalJSON - converts to JSON data.
 func (set StringSet) MarshalJSON() ([]byte, error) {
-	return json.Marshal(set.keys())
+	return json.Marshal(set.ToSlice())
 }
 
 // UnmarshalJSON - parses JSON data and creates new set with it.
@@ -169,7 +173,7 @@ func (set *StringSet) UnmarshalJSON(data []byte) error {
 
 // String - returns printable string of the set.
 func (set StringSet) String() string {
-	return fmt.Sprintf("%s", set.keys())
+	return fmt.Sprintf("%s", set.ToSlice())
 }
 
 // NewStringSet - creates new string set.

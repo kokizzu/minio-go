@@ -1,5 +1,6 @@
 /*
- * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2015 Minio, Inc.
+ * MinIO Go Library for Amazon S3 Compatible Cloud Storage
+ * Copyright 2015-2017 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +18,15 @@
 package minio
 
 import (
-	"encoding/hex"
+	"net"
 	"net/http"
 	"net/url"
 	"path"
-	"strings"
 	"sync"
 
-	"github.com/minio/minio-go/pkg/s3signer"
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/minio/minio-go/v6/pkg/credentials"
+	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/minio-go/v6/pkg/signer"
 )
 
 // bucketLocationCache - Provides simple mechanism to hold bucket
@@ -72,7 +73,7 @@ func (r *bucketLocationCache) Delete(bucketName string) {
 // GetBucketLocation - get location for the bucket name from location cache, if not
 // fetch freshly by making a new request.
 func (c Client) GetBucketLocation(bucketName string) (string, error) {
-	if err := isValidBucketName(bucketName); err != nil {
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return "", err
 	}
 	return c.getBucketLocation(bucketName)
@@ -81,19 +82,17 @@ func (c Client) GetBucketLocation(bucketName string) (string, error) {
 // getBucketLocation - Get location for the bucketName from location map cache, if not
 // fetch freshly by making a new request.
 func (c Client) getBucketLocation(bucketName string) (string, error) {
-	if err := isValidBucketName(bucketName); err != nil {
+	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return "", err
 	}
-	if location, ok := c.bucketLocCache.Get(bucketName); ok {
-		return location, nil
+
+	// Region set then no need to fetch bucket location.
+	if c.region != "" {
+		return c.region, nil
 	}
 
-	if s3utils.IsAmazonChinaEndpoint(c.endpointURL) {
-		// For china specifically we need to set everything to
-		// cn-north-1 for now, there is no easier way until AWS S3
-		// provides a cleaner compatible API across "us-east-1" and
-		// China region.
-		return "cn-north-1", nil
+	if location, ok := c.bucketLocCache.Get(bucketName); ok {
+		return location, nil
 	}
 
 	// Initialize a new request.
@@ -125,8 +124,20 @@ func processBucketLocationResponse(resp *http.Response, bucketName string) (buck
 			// For access denied error, it could be an anonymous
 			// request. Move forward and let the top level callers
 			// succeed if possible based on their policy.
-			if errResp.Code == "AccessDenied" && strings.Contains(errResp.Message, "Access Denied") {
-				return "us-east-1", nil
+			switch errResp.Code {
+			case "NotImplemented":
+				if errResp.Server == "AmazonSnowball" {
+					return "snowball", nil
+				}
+			case "AuthorizationHeaderMalformed":
+				fallthrough
+			case "InvalidRegion":
+				fallthrough
+			case "AccessDenied":
+				if errResp.Region == "" {
+					return "us-east-1", nil
+				}
+				return errResp.Region, nil
 			}
 			return "", err
 		}
@@ -163,19 +174,30 @@ func (c Client) getBucketLocationRequest(bucketName string) (*http.Request, erro
 	urlValues.Set("location", "")
 
 	// Set get bucket location always as path style.
-	targetURL := c.endpointURL
+	targetURL := *c.endpointURL
 
-	// Requesting a bucket location from an accelerate endpoint returns a 400,
-	// so default to us-east-1 for the lookup
-	if s3utils.IsAmazonS3AccelerateEndpoint(c.endpointURL) {
-		targetURL.Host = getS3Endpoint("us-east-1")
+	// as it works in makeTargetURL method from api.go file
+	if h, p, err := net.SplitHostPort(targetURL.Host); err == nil {
+		if targetURL.Scheme == "http" && p == "80" || targetURL.Scheme == "https" && p == "443" {
+			targetURL.Host = h
+		}
 	}
 
-	targetURL.Path = path.Join(bucketName, "") + "/"
-	targetURL.RawQuery = urlValues.Encode()
+	isVirtualHost := s3utils.IsVirtualHostSupported(targetURL, bucketName)
+
+	var urlStr string
+
+	//only support Aliyun OSS for virtual hosted path,  compatible  Amazon & Google Endpoint
+	if isVirtualHost && s3utils.IsAliyunOSSEndpoint(targetURL) {
+		urlStr = c.endpointURL.Scheme + "://" + bucketName + "." + targetURL.Host + "/?location"
+	} else {
+		targetURL.Path = path.Join(bucketName, "") + "/"
+		targetURL.RawQuery = urlValues.Encode()
+		urlStr = targetURL.String()
+	}
 
 	// Get a new HTTP request for the method.
-	req, err := http.NewRequest("GET", targetURL.String(), nil)
+	req, err := http.NewRequest("GET", urlStr, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -183,22 +205,48 @@ func (c Client) getBucketLocationRequest(bucketName string) (*http.Request, erro
 	// Set UserAgent for the request.
 	c.setUserAgent(req)
 
-	// Set sha256 sum for signature calculation only with signature version '4'.
-	if c.signature.isV4() {
-		var contentSha256 string
-		if c.secure {
-			contentSha256 = unsignedPayload
-		} else {
-			contentSha256 = hex.EncodeToString(sum256([]byte{}))
-		}
-		req.Header.Set("X-Amz-Content-Sha256", contentSha256)
+	// Get credentials from the configured credentials provider.
+	value, err := c.credsProvider.Get()
+	if err != nil {
+		return nil, err
 	}
 
-	// Sign the request.
-	if c.signature.isV4() {
-		req = s3signer.SignV4(*req, c.accessKeyID, c.secretAccessKey, "us-east-1")
-	} else if c.signature.isV2() {
-		req = s3signer.SignV2(*req, c.accessKeyID, c.secretAccessKey)
+	var (
+		signerType      = value.SignerType
+		accessKeyID     = value.AccessKeyID
+		secretAccessKey = value.SecretAccessKey
+		sessionToken    = value.SessionToken
+	)
+
+	// Custom signer set then override the behavior.
+	if c.overrideSignerType != credentials.SignatureDefault {
+		signerType = c.overrideSignerType
 	}
+
+	// If signerType returned by credentials helper is anonymous,
+	// then do not sign regardless of signerType override.
+	if value.SignerType == credentials.SignatureAnonymous {
+		signerType = credentials.SignatureAnonymous
+	}
+
+	if signerType.IsAnonymous() {
+		return req, nil
+	}
+
+	if signerType.IsV2() {
+		// Get Bucket Location calls should be always path style
+		isVirtualHost := false
+		req = signer.SignV2(*req, accessKeyID, secretAccessKey, isVirtualHost)
+		return req, nil
+	}
+
+	// Set sha256 sum for signature calculation only with signature version '4'.
+	contentSha256 := emptySHA256Hex
+	if c.secure {
+		contentSha256 = unsignedPayload
+	}
+
+	req.Header.Set("X-Amz-Content-Sha256", contentSha256)
+	req = signer.SignV4(*req, accessKeyID, secretAccessKey, sessionToken, "us-east-1")
 	return req, nil
 }

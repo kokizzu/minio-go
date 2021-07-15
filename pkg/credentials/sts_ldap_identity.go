@@ -1,6 +1,6 @@
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2019 MinIO, Inc.
+ * Copyright 2019-2021 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,6 +60,10 @@ type LDAPIdentity struct {
 
 	// LDAP username/password used to fetch LDAP STS credentials.
 	LDAPUsername, LDAPPassword string
+
+	// Session policy to apply to the generated credentials. Leave empty to
+	// use the full access policy available to the user.
+	Policy string
 }
 
 // NewLDAPIdentity returns new credentials object that uses LDAP
@@ -73,13 +77,41 @@ func NewLDAPIdentity(stsEndpoint, ldapUsername, ldapPassword string) (*Credentia
 	}), nil
 }
 
+func stripPassword(err error) error {
+	urlErr, ok := err.(*url.Error)
+	if ok {
+		u, _ := url.Parse(urlErr.URL)
+		if u == nil {
+			return urlErr
+		}
+		values := u.Query()
+		values.Set("LDAPPassword", "xxxxx")
+		u.RawQuery = values.Encode()
+		urlErr.URL = u.String()
+		return urlErr
+	}
+	return err
+}
+
+// NewLDAPIdentityWithSessionPolicy returns new credentials object that uses
+// LDAP Identity with a specified session policy. The `policy` parameter must be
+// a JSON string specifying the policy document.
+func NewLDAPIdentityWithSessionPolicy(stsEndpoint, ldapUsername, ldapPassword, policy string) (*Credentials, error) {
+	return New(&LDAPIdentity{
+		Client:       &http.Client{Transport: http.DefaultTransport},
+		STSEndpoint:  stsEndpoint,
+		LDAPUsername: ldapUsername,
+		LDAPPassword: ldapPassword,
+		Policy:       policy,
+	}), nil
+}
+
 // Retrieve gets the credential by calling the MinIO STS API for
 // LDAP on the configured stsEndpoint.
 func (k *LDAPIdentity) Retrieve() (value Value, err error) {
-	u, kerr := url.Parse(k.STSEndpoint)
-	if kerr != nil {
-		err = kerr
-		return
+	u, err := url.Parse(k.STSEndpoint)
+	if err != nil {
+		return value, err
 	}
 
 	v := url.Values{}
@@ -87,25 +119,25 @@ func (k *LDAPIdentity) Retrieve() (value Value, err error) {
 	v.Set("Version", STSVersion)
 	v.Set("LDAPUsername", k.LDAPUsername)
 	v.Set("LDAPPassword", k.LDAPPassword)
+	if k.Policy != "" {
+		v.Set("Policy", k.Policy)
+	}
 
 	u.RawQuery = v.Encode()
 
-	req, kerr := http.NewRequest(http.MethodPost, u.String(), nil)
-	if kerr != nil {
-		err = kerr
-		return
+	req, err := http.NewRequest(http.MethodPost, u.String(), nil)
+	if err != nil {
+		return value, stripPassword(err)
 	}
 
-	resp, kerr := k.Client.Do(req)
-	if kerr != nil {
-		err = kerr
-		return
+	resp, err := k.Client.Do(req)
+	if err != nil {
+		return value, stripPassword(err)
 	}
 
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		err = errors.New(resp.Status)
-		return
+		return value, errors.New(resp.Status)
 	}
 
 	r := AssumeRoleWithLDAPResponse{}

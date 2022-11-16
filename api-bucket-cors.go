@@ -11,6 +11,7 @@ import (
 )
 
 // https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketCors.html
+// https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketCors.html
 
 const PutBucketCorsXmlExample = `<?xml version="1.0" encoding="UTF-8"?>
 <CORSConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">

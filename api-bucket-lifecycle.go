@@ -25,8 +25,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/kokizzu/minio-go/v7/pkg/lifecycle"
-	"github.com/kokizzu/minio-go/v7/pkg/s3utils"
+	"github.com/kokizzu/minio-go/pkg/lifecycle"
+	"github.com/kokizzu/minio-go/pkg/s3utils"
 )
 
 // SetBucketLifecycle set the lifecycle on an existing bucket.

@@ -52,11 +52,11 @@ import (
 	"github.com/minio/sha256-simd"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/kokizzu/minio-go/v7"
-	"github.com/kokizzu/minio-go/v7/pkg/credentials"
-	"github.com/kokizzu/minio-go/v7/pkg/encrypt"
-	"github.com/kokizzu/minio-go/v7/pkg/notification"
-	"github.com/kokizzu/minio-go/v7/pkg/tags"
+	"github.com/kokizzu/minio-go"
+	"github.com/kokizzu/minio-go/pkg/credentials"
+	"github.com/kokizzu/minio-go/pkg/encrypt"
+	"github.com/kokizzu/minio-go/pkg/notification"
+	"github.com/kokizzu/minio-go/pkg/tags"
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyz01234569"

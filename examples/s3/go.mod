@@ -9,7 +9,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.1.0 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
-	github.com/kokizzu/minio-go/v7 v7.0.32
+	github.com/kokizzu/minio-go v7.0.32
 	github.com/minio/sha256-simd v1.0.0 // indirect
 	github.com/minio/sio v0.3.0
 	github.com/rs/xid v1.4.0 // indirect
@@ -20,4 +20,4 @@ require (
 	gopkg.in/ini.v1 v1.66.6 // indirect
 )
 
-replace github.com/kokizzu/minio-go/v7 v7.0.10 => ../..
+replace github.com/kokizzu/minio-go v7.0.10 => ../..

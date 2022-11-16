@@ -26,8 +26,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/kokizzu/minio-go/v7"
-	"github.com/kokizzu/minio-go/v7/pkg/credentials"
+	"github.com/kokizzu/minio-go"
+	"github.com/kokizzu/minio-go/pkg/credentials"
 )
 
 func main() {

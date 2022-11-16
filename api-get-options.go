@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/kokizzu/minio-go/v7/pkg/encrypt"
+	"github.com/kokizzu/minio-go/pkg/encrypt"
 )
 
 // AdvancedGetOptions for internal use by MinIO server - not intended for client use.

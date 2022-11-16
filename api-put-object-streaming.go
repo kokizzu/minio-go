@@ -30,7 +30,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/kokizzu/minio-go/v7/pkg/s3utils"
+	"github.com/kokizzu/minio-go/pkg/s3utils"
 )
 
 // putObjectMultipartStream - upload a large object using

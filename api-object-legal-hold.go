@@ -25,7 +25,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/kokizzu/minio-go/v7/pkg/s3utils"
+	"github.com/kokizzu/minio-go/pkg/s3utils"
 )
 
 // objectLegalHold - object legal hold specified in

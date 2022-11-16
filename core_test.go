@@ -28,8 +28,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kokizzu/minio-go/v7/pkg/credentials"
-	"github.com/kokizzu/minio-go/v7/pkg/encrypt"
+	"github.com/kokizzu/minio-go/pkg/credentials"
+	"github.com/kokizzu/minio-go/pkg/encrypt"
 )
 
 const (

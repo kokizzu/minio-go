@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/minio/minio-go/v7/pkg/s3utils"
+	"github.com/kokizzu/minio-go/v7/pkg/s3utils"
 )
 
 // https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketCors.html

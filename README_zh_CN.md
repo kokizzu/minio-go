@@ -1,4 +1,4 @@
-# 适用于与Amazon S3兼容云存储的MinIO Go SDK [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io) [![Sourcegraph](https://sourcegraph.com/github.com/minio/minio-go/-/badge.svg)](https://sourcegraph.com/github.com/minio/minio-go?badge)
+# 适用于与Amazon S3兼容云存储的MinIO Go SDK [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io) [![Sourcegraph](https://sourcegraph.com/github.com/kokizzu/minio-go/-/badge.svg)](https://sourcegraph.com/github.com/kokizzu/minio-go?badge)
 
 MinIO Go Client SDK提供了简单的API来访问任何与Amazon S3兼容的对象存储服务。
 
@@ -20,7 +20,7 @@ MinIO Go Client SDK提供了简单的API来访问任何与Amazon S3兼容的对�
 
 ## 从Github下载
 ```sh
-go get -u github.com/minio/minio-go
+go get -u github.com/kokizzu/minio-go
 ```
 
 ## 初始化MinIO Client
@@ -40,8 +40,8 @@ package main
 import (
 	"log"
 
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/kokizzu/minio-go/v7"
+	"github.com/kokizzu/minio-go/v7/pkg/credentials"
 )
 
 func main() {
@@ -76,8 +76,8 @@ import (
 	"context"
 	"log"
 
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/kokizzu/minio-go/v7"
+	"github.com/kokizzu/minio-go/v7/pkg/credentials"
 )
 
 func main() {
@@ -190,71 +190,71 @@ mc ls play/mymusic/
 ## 完整示例
 
 ### 完整示例 : 操作存储桶
-* [makebucket.go](https://github.com/minio/minio-go/blob/master/examples/s3/makebucket.go)
-* [listbuckets.go](https://github.com/minio/minio-go/blob/master/examples/s3/listbuckets.go)
-* [bucketexists.go](https://github.com/minio/minio-go/blob/master/examples/s3/bucketexists.go)
-* [removebucket.go](https://github.com/minio/minio-go/blob/master/examples/s3/removebucket.go)
-* [listobjects.go](https://github.com/minio/minio-go/blob/master/examples/s3/listobjects.go)
-* [listobjectsV2.go](https://github.com/minio/minio-go/blob/master/examples/s3/listobjectsV2.go)
-* [listincompleteuploads.go](https://github.com/minio/minio-go/blob/master/examples/s3/listincompleteuploads.go)
+* [makebucket.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/makebucket.go)
+* [listbuckets.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/listbuckets.go)
+* [bucketexists.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/bucketexists.go)
+* [removebucket.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/removebucket.go)
+* [listobjects.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/listobjects.go)
+* [listobjectsV2.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/listobjectsV2.go)
+* [listincompleteuploads.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/listincompleteuploads.go)
 
 ### 完整示例 : 存储桶策略
-* [setbucketpolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/setbucketpolicy.go)
-* [getbucketpolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketpolicy.go)
-* [listbucketpolicies.go](https://github.com/minio/minio-go/blob/master/examples/s3/listbucketpolicies.go)
+* [setbucketpolicy.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/setbucketpolicy.go)
+* [getbucketpolicy.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/getbucketpolicy.go)
+* [listbucketpolicies.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/listbucketpolicies.go)
 
 ### 完整示例 : 存储桶生命周期
-* [setbucketlifecycle.go](https://github.com/minio/minio-go/blob/master/examples/s3/setbucketlifecycle.go)
-* [getbucketlifecycle.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketlifecycle.go)
+* [setbucketlifecycle.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/setbucketlifecycle.go)
+* [getbucketlifecycle.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/getbucketlifecycle.go)
 
 ### 完整示例 : 存储桶加密
-* [setbucketencryption.go](https://github.com/minio/minio-go/blob/master/examples/s3/setbucketencryption.go)
-* [getbucketencryption.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketencryption.go)
-* [deletebucketencryption.go](https://github.com/minio/minio-go/blob/master/examples/s3/deletebucketencryption.go)
+* [setbucketencryption.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/setbucketencryption.go)
+* [getbucketencryption.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/getbucketencryption.go)
+* [deletebucketencryption.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/deletebucketencryption.go)
 
 ### 完整示例 : 存储桶复制
-* [setbucketreplication.go](https://github.com/minio/minio-go/blob/master/examples/s3/setbucketreplication.go)
-* [getbucketreplication.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketreplication.go)
-* [removebucketreplication.go](https://github.com/minio/minio-go/blob/master/examples/s3/removebucketreplication.go)
+* [setbucketreplication.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/setbucketreplication.go)
+* [getbucketreplication.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/getbucketreplication.go)
+* [removebucketreplication.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/removebucketreplication.go)
 
 ### 完整示例 : 存储桶通知
-* [setbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/setbucketnotification.go)
-* [getbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/getbucketnotification.go)
-* [removeallbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/s3/removeallbucketnotification.go)
-* [listenbucketnotification.go](https://github.com/minio/minio-go/blob/master/examples/minio/listenbucketnotification.go) (MinIO扩展)
-* [listennotification.go](https://github.com/minio/minio-go/blob/master/examples/minio/listen-notification.go) (MinIO 扩展)
+* [setbucketnotification.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/setbucketnotification.go)
+* [getbucketnotification.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/getbucketnotification.go)
+* [removeallbucketnotification.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/removeallbucketnotification.go)
+* [listenbucketnotification.go](https://github.com/kokizzu/minio-go/blob/master/examples/minio/listenbucketnotification.go) (MinIO扩展)
+* [listennotification.go](https://github.com/kokizzu/minio-go/blob/master/examples/minio/listen-notification.go) (MinIO 扩展)
 
 ### 完整示例 : 操作文件对象
-* [fputobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/fputobject.go)
-* [fgetobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/fgetobject.go)
-* [fputobject-context.go](https://github.com/minio/minio-go/blob/master/examples/s3/fputobject-context.go)
-* [fgetobject-context.go](https://github.com/minio/minio-go/blob/master/examples/s3/fgetobject-context.go)
+* [fputobject.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/fputobject.go)
+* [fgetobject.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/fgetobject.go)
+* [fputobject-context.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/fputobject-context.go)
+* [fgetobject-context.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/fgetobject-context.go)
 
 ### 完整示例 : 操作对象
-* [putobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/putobject.go)
-* [getobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/getobject.go)
-* [putobject-context.go](https://github.com/minio/minio-go/blob/master/examples/s3/putobject-context.go)
-* [getobject-context.go](https://github.com/minio/minio-go/blob/master/examples/s3/getobject-context.go)
-* [statobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/statobject.go)
-* [copyobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/copyobject.go)
-* [removeobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/removeobject.go)
-* [removeincompleteupload.go](https://github.com/minio/minio-go/blob/master/examples/s3/removeincompleteupload.go)
-* [removeobjects.go](https://github.com/minio/minio-go/blob/master/examples/s3/removeobjects.go)
+* [putobject.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/putobject.go)
+* [getobject.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/getobject.go)
+* [putobject-context.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/putobject-context.go)
+* [getobject-context.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/getobject-context.go)
+* [statobject.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/statobject.go)
+* [copyobject.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/copyobject.go)
+* [removeobject.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/removeobject.go)
+* [removeincompleteupload.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/removeincompleteupload.go)
+* [removeobjects.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/removeobjects.go)
 
 ### 完整示例 : 操作加密对象
-* [put-encrypted-object.go](https://github.com/minio/minio-go/blob/master/examples/s3/put-encrypted-object.go)
-* [get-encrypted-object.go](https://github.com/minio/minio-go/blob/master/examples/s3/get-encrypted-object.go)
-* [fput-encrypted-object.go](https://github.com/minio/minio-go/blob/master/examples/s3/fputencrypted-object.go)
+* [put-encrypted-object.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/put-encrypted-object.go)
+* [get-encrypted-object.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/get-encrypted-object.go)
+* [fput-encrypted-object.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/fputencrypted-object.go)
 
 ### 完整示例 : Presigned操作
-* [presignedgetobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/presignedgetobject.go)
-* [presignedputobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/presignedputobject.go)
-* [presignedheadobject.go](https://github.com/minio/minio-go/blob/master/examples/s3/presignedheadobject.go)
-* [presignedpostpolicy.go](https://github.com/minio/minio-go/blob/master/examples/s3/presignedpostpolicy.go)
+* [presignedgetobject.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/presignedgetobject.go)
+* [presignedputobject.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/presignedputobject.go)
+* [presignedheadobject.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/presignedheadobject.go)
+* [presignedpostpolicy.go](https://github.com/kokizzu/minio-go/blob/master/examples/s3/presignedpostpolicy.go)
 
 ## 了解更多
 * [完整文档](https://min.io/docs/minio/kubernetes/upstream/index.html)
 * [MinIO Go Client SDK API文档](https://min.io/docs/minio/linux/developers/go/API.html)
 
 ## 贡献
-[贡献指南](https://github.com/minio/minio-go/blob/master/docs/zh_CN/CONTRIBUTING.md)
+[贡献指南](https://github.com/kokizzu/minio-go/blob/master/docs/zh_CN/CONTRIBUTING.md)

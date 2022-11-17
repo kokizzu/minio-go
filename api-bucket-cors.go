@@ -1,11 +1,11 @@
 package minio
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/kokizzu/minio-go/pkg/s3utils"
 )
@@ -41,11 +41,15 @@ func (c *Client) PutBucketCors(ctx context.Context, bucketName string, xmlCors s
 	urlValues := make(url.Values)
 	urlValues.Set(`cors`, ``)
 
+	h := http.Header{}
+	h.Set(`content-md5`, sumMD5Base64([]byte(xmlCors)))
+
 	// PUT bucket request metadata.
 	reqMetadata := requestMetadata{
-		bucketName:  bucketName,
-		contentBody: strings.NewReader(xmlCors),
-		queryValues: urlValues,
+		bucketName:   bucketName,
+		contentBody:  bytes.NewReader([]byte(xmlCors)),
+		queryValues:  urlValues,
+		customHeader: h,
 	}
 
 	// Execute PUT to create a new bucket.

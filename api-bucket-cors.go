@@ -50,7 +50,7 @@ func (c *Client) PutBucketCors(ctx context.Context, bucketName string, xmlCors s
 	reqMetadata := requestMetadata{
 		bucketName:    bucketName,
 		contentBody:   bytes.NewReader(byt),
-		contentLength: len(byt),
+		contentLength: int64(len(byt)),
 		queryValues:   urlValues,
 		customHeader:  h,
 	}

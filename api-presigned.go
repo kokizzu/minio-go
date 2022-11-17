@@ -94,6 +94,18 @@ func (c *Client) PresignedPutObject(ctx context.Context, bucketName string, obje
 	return c.presignURL(ctx, http.MethodPut, bucketName, objectName, expires, nil, nil)
 }
 
+// PresignedPutObject4AWS - Returns a presigned URL to upload an object
+// without credentials. URL can have a maximum expiry of upto 7days
+// or a minimum of 1sec.
+func (c *Client) PresignedPutObject4AWS(ctx context.Context, bucketName, objectName, contentType string, expires time.Duration) (u *url.URL, err error) {
+	if err = s3utils.CheckValidObjectName(objectName); err != nil {
+		return nil, err
+	}
+	h := http.Header{}
+	h.Set(`content-type`, contentType)
+	return c.presignURL(ctx, http.MethodPut, bucketName, objectName, expires, nil, h)
+}
+
 // PresignHeader - similar to Presign() but allows including HTTP headers that
 // will be used to build the signature. The request using the resulting URL will
 // need to have the exact same headers to be added for signature validation to

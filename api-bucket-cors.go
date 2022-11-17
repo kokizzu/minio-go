@@ -44,12 +44,15 @@ func (c *Client) PutBucketCors(ctx context.Context, bucketName string, xmlCors s
 	h := http.Header{}
 	h.Set(`content-md5`, sumMD5Base64([]byte(xmlCors)))
 
+	byt := []byte(xmlCors)
+
 	// PUT bucket request metadata.
 	reqMetadata := requestMetadata{
-		bucketName:   bucketName,
-		contentBody:  bytes.NewReader([]byte(xmlCors)),
-		queryValues:  urlValues,
-		customHeader: h,
+		bucketName:    bucketName,
+		contentBody:   bytes.NewReader(byt),
+		contentLength: len(byt),
+		queryValues:   urlValues,
+		customHeader:  h,
 	}
 
 	// Execute PUT to create a new bucket.

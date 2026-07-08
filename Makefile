@@ -3,7 +3,7 @@ TMPDIR := $(shell mktemp -d)
 
 all: checks
 
-.PHONY: examples docs
+.PHONY: examples docs verify-dependency-security
 
 checks: lint vet test examples functional-test
 
@@ -18,6 +18,9 @@ vet:
 	@GO111MODULE=on go vet ./...
 	@echo "Installing staticcheck" && go install honnef.co/go/tools/cmd/staticcheck@latest
 	${GOPATH}/bin/staticcheck -tests=false -checks="all,-ST1000,-ST1003,-ST1016,-ST1020,-ST1021,-ST1022,-ST1023,-ST1005"
+
+verify-dependency-security:
+	bash scripts/verify-dependency-security.sh
 
 test:
 	@GO111MODULE=on SERVER_ENDPOINT=localhost:9000 ACCESS_KEY=minio SECRET_KEY=minio123 ENABLE_HTTPS=1 MINT_MODE=full go test -race -v ./...

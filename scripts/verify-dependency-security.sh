@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-modules="$(go list -m -f '{{.Path}} {{.Version}}' all)"
-
 selected_version() {
   awk -v module="$1" '$1 == module { print $2 }' <<<"$modules"
 }
@@ -52,14 +50,21 @@ require_otel_not_vulnerable() {
   fi
 }
 
-require_absent github.com/docker/docker
-require_min github.com/docker/cli v29.3.1
-require_min github.com/gofiber/fiber/v2 v2.52.13
-require_min github.com/opencontainers/runc v1.3.6
-require_min go.mongodb.org/mongo-driver v1.17.7
-require_min github.com/shamaton/msgpack/v2 v2.4.1
-require_min golang.org/x/crypto v0.53.0
-require_min golang.org/x/image v0.18.0
-require_otel_not_vulnerable
+check_graph() {
+  require_absent github.com/docker/docker
+  require_min github.com/docker/cli v29.3.1
+  require_min github.com/gofiber/fiber/v2 v2.52.13
+  require_min github.com/opencontainers/runc v1.3.6
+  require_min go.mongodb.org/mongo-driver v1.17.7
+  require_min github.com/shamaton/msgpack/v2 v2.4.1
+  require_min golang.org/x/crypto v0.53.0
+  require_min golang.org/x/image v0.18.0
+  require_otel_not_vulnerable
+}
+
+for module_dir in . examples/s3 examples/minio; do
+  modules="$(cd "$module_dir" && GOFLAGS=-mod=mod go list -m -f '{{.Path}} {{.Version}}' all)"
+  check_graph
+done
 
 printf 'dependency security graph ok\n'
